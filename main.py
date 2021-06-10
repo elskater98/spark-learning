@@ -3,6 +3,24 @@ import time
 import shutil
 import pyspark
 
+
+def sentiments(tweet):
+    words = tweet['text'].split(" ")
+    ratio = 0.0
+
+    for word in words:
+        if len(word) <= 0 or word[0] == '#':
+            continue
+
+        if word in positive_words:
+            ratio -= 1
+
+        if word in negative_words:
+            ratio += 1
+
+    return [(hashtag, (ratio / float(len(tweet['text'])))) for hashtag in tweet['hashtags']]
+
+
 if __name__ == '__main__':
     start_time = time.time()
     # https://guru99.es/pyspark-tutorial/
@@ -20,14 +38,22 @@ if __name__ == '__main__':
 
     # Clean Fields
     clean_data = lower_data.filter(lambda t: t["entities"]["hashtags"] != []).map(
-        lambda t: {"text": t["text"], "lang": t["lang"],
-                   "hashtags": [x['text'] for x in t["entities"]["hashtags"]]}).filter(lambda i: "es" in i["lang"])
+        lambda i: {"text": i["text"], "lang": i["lang"],
+                   "hashtags": [j['text'] for j in i["entities"]["hashtags"]]}).filter(lambda i: "es" in i["lang"])
 
     # Trending Topics
-    trending_data = clean_data.flatMap(lambda h: h['hashtags']).map(lambda hashtag: (hashtag, 1)).reduceByKey(
-        lambda a, b: a + b)
+    # https://spark.apache.org/docs/3.1.1/api/python/reference/api/pyspark.RDD.flatMap.html
+    trending_data = clean_data.flatMap(lambda i: i['hashtags']).map(lambda hashtag: (hashtag, 1)).reduceByKey(
+        lambda x, y: x + y)
 
-    TopN = sc.parallelize(trending_data.takeOrdered(10, lambda t: -t[1]))
-    TopN.saveAsTextFile("out")
+    topn = sc.parallelize(trending_data.takeOrdered(10, lambda t: -t[1]))
+    topn.saveAsTextFile("out")
 
+    positive_words = set(line.strip().lower() for line in open("input/data/positive_words_es.txt"))
+    negative_words = set(line.strip().lower() for line in open("input/data/negative_words_es.txt"))
 
+    sentiments = clean_data.flatMap(lambda i: sentiments(i)).collect()
+
+    print(sc.parallelize(sentiments).reduceByKey(lambda x, y: x + y).collect())
+
+    print((time.time() - start_time) * 1000)
