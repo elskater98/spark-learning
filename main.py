@@ -37,7 +37,7 @@ if __name__ == '__main__':
     lower_data = inputFiles.map(lambda i: json.loads(i.lower()))
 
     # Clean Fields
-    clean_data = lower_data.filter(lambda t: t["entities"]["hashtags"] != []).map(
+    clean_data = lower_data.filter(lambda i: i["entities"]["hashtags"] != []).map(
         lambda i: {"text": i["text"], "lang": i["lang"],
                    "hashtags": [j['text'] for j in i["entities"]["hashtags"]]}).filter(lambda i: "es" in i["lang"])
 
