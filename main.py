@@ -1,4 +1,5 @@
 import json
+import os
 import time
 import shutil
 import pyspark
@@ -25,12 +26,13 @@ if __name__ == '__main__':
     start_time = time.time()
     # https://guru99.es/pyspark-tutorial/
     # Create Spark Context
+    os.system("hdfs dfs -rm -R /user/fcp5/SparkActivity")
     sc = pyspark.SparkContext('local[*]', appName='SparkActivity')
 
     # Read Input Files
-    # inputFiles = sc.textFile("hdfs:///shared/nando/data/tweets/tweets*.json")
-    inputFiles = sc.textFile('input/tweets/tweets.json')
-    shutil.rmtree('out/', ignore_errors=True)
+    inputFiles = sc.textFile("hdfs:///shared/nando/data/tweets/tweets*.json")
+    # inputFiles = sc.textFile('input/tweets/tweets.json')
+    # shutil.rmtree('out/', ignore_errors=True)
 
     # Typescript: arr.map((item) => item+1)
 
@@ -46,8 +48,9 @@ if __name__ == '__main__':
     trending_data = clean_data.flatMap(lambda i: i['hashtags']).map(lambda hashtag: (hashtag, 1)).reduceByKey(
         lambda x, y: x + y)
 
-    topn = sc.parallelize(trending_data.takeOrdered(10, lambda t: -t[1]))
-    topn.saveAsTextFile("out")
+    topn = sc.parallelize(trending_data.takeOrdered(10, lambda i: -i[1]))
+    #topn.saveAsTextFile("out")
+    topn.saveAsTextFile("hdfs:///user/fcp5/SparkActivity/out")
 
     positive_words = set(line.strip().lower() for line in open("input/data/positive_words_es.txt"))
     negative_words = set(line.strip().lower() for line in open("input/data/negative_words_es.txt"))
